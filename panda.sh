@@ -14,6 +14,7 @@ declare -a subdirectories
 subdirectories_handlement=""
 
 declare -a checksum_file_pair_collection_to_store
+checksum_file_pair_collection_to_store_nth_element=""
 declare -a stored_checksum_file_pair_collection
 declare -a mismatched_checksum_files
 declare -a scanned_rootless_files_to_render
@@ -185,6 +186,7 @@ does_checksum_exist() {
     for stored_checksum_file_pair in "${stored_checksum_file_pair_collection[@]}"; do
         if [ "$1" == "${stored_checksum_file_pair#*'  '}" ]; then # <checksum>  path -> path
             checksum_file_pair_collection_to_store+=("$stored_checksum_file_pair")
+            checksum_file_pair_collection_to_store_nth_element="$1"
             return 0
         fi
     done
@@ -217,9 +219,8 @@ render_pdf() {
             tput dim
             # shellcheck disable=2048,2086
             if eval pandoc -t pdf --pdf-engine=tectonic --resource-path=\'"$source_directory/$rootless_directory_structure_of_file_to_render"\' ${pandoc_options[*]} --output=\'"$target_directory/$scanned_rootless_file_to_render.md.pdf"\' \'"$source_directory/$scanned_rootless_file_to_render.md"\'; then # \'"foo bar baz"\' --eval-> 'foo bar baz'
-                local checksum_file_pair_collection_to_store_nth_element="$((${#checksum_file_pair_collection_to_store[@]} - 1))"
-                if [ "${checksum_file_pair_collection_to_store["$checksum_file_pair_collection_to_store_nth_element"]#*'  '}" == "$scanned_rootless_file_to_render" ]; then
-                    checksum_file_pair_collection_to_store["$checksum_file_pair_collection_to_store_nth_element"]="$(sha256sum "$source_directory/$scanned_rootless_file_to_render.md")" # overwrite stored checksum
+                if [ "$checksum_file_pair_collection_to_store_nth_element" == "$source_directory/$scanned_rootless_file_to_render.md" ]; then
+                    checksum_file_pair_collection_to_store["$((${#checksum_file_pair_collection_to_store[@]} - 1))"]="$(sha256sum "$source_directory/$scanned_rootless_file_to_render.md")" # overwrite stored checksum
                 else
                     checksum_file_pair_collection_to_store+=("$(sha256sum "$source_directory/$scanned_rootless_file_to_render.md")") # add checksum
                 fi
