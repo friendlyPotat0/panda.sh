@@ -18,6 +18,7 @@ checksum_file_pair_collection_to_store_nth_element=""
 declare -a stored_checksum_file_pair_collection
 declare -a mismatched_checksum_files
 declare -a scanned_rootless_files_to_render_pdf
+flag_for_html=false
 declare -a scanned_rootless_files_to_render_html
 
 ### CHECK DEPENDENCIES ###
@@ -153,11 +154,12 @@ load_markdown_data() {
         "included") scan_parameters_pdf="$(printf -- "-path '*%s*' -type f -name '*.md' -printf '%%P\\\n' -or " "${subdirectories[@]}" | sed 's| -or $||g' | tr -d '\n')" ;;
         "excluded")
             scan_parameters_pdf="$(printf -- "-not -path '*%s*' -type f -name '*.md' -printf '%%P\\\n' " "${subdirectories[@]}" | sed 's| $||g' | tr -d '\n')"
+            flag_for_html=true
             scan_parameters_html="$(printf -- "-path '*%s*' -type f -name '*.md' -printf '%%P\\\n' -or " "${subdirectories[@]}" | sed 's| -or $||g' | tr -d '\n')"
             ;;
         *) scan_parameters_pdf="-type f -name '*.md' -printf '%P\n'" ;;
     esac
-    mapfile -t scanned_rootless_files_to_render_html < <(eval find "$source_directory" "$scan_parameters_html") # -printf '%P\n' => $source/path/to/file.md -> path/to/file.md
+    "$flag_for_html" && mapfile -t scanned_rootless_files_to_render_html < <(eval find "$source_directory" "$scan_parameters_html") # -printf '%P\n' => $source/path/to/file.md -> path/to/file.md
     mapfile -t scanned_rootless_files_to_render_pdf < <(eval find "$source_directory" "$scan_parameters_pdf") # -printf '%P\n' => $source/path/to/file.md -> path/to/file.md
 }
 
@@ -262,7 +264,7 @@ render_html() {
 
             tput dim
             # shellcheck disable=2048,2086
-            if eval pandoc -t html --html-engine=tectonic --resource-path=\'"$source_directory/$rootless_directory_structure_of_file_to_render"\' ${pandoc_options[*]} --output=\'"$target_directory/$scanned_rootless_file_to_render_html.md.html"\' \'"$source_directory/$scanned_rootless_file_to_render_html.md"\'; then # \'"foo bar baz"\' --eval-> 'foo bar baz'
+            if eval pandoc -t html --resource-path=\'"$source_directory/$rootless_directory_structure_of_file_to_render"\' --output=\'"$target_directory/$scanned_rootless_file_to_render_html.md.html"\' \'"$source_directory/$scanned_rootless_file_to_render_html.md"\'; then # \'"foo bar baz"\' --eval-> 'foo bar baz'
                 if [ "$checksum_file_pair_collection_to_store_nth_element" == "$source_directory/$scanned_rootless_file_to_render_html.md" ]; then
                     checksum_file_pair_collection_to_store["$((${#checksum_file_pair_collection_to_store[@]} - 1))"]="$(sha256sum "$source_directory/$scanned_rootless_file_to_render_html.md")" # overwrite stored checksum
                 else
@@ -287,4 +289,4 @@ load_checksum_data
 load_markdown_data
 inspect_variable_integrity
 render_pdf
-render_html
+"$flag_for_html" && render_html
