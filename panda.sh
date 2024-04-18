@@ -17,7 +17,8 @@ declare -a checksum_file_pair_collection_to_store
 checksum_file_pair_collection_to_store_nth_element=""
 declare -a stored_checksum_file_pair_collection
 declare -a mismatched_checksum_files
-declare -a scanned_rootless_files_to_render
+declare -a scanned_rootless_files_to_render_pdf
+declare -a scanned_rootless_files_to_render_html
 
 ### CHECK DEPENDENCIES ###
 
@@ -146,13 +147,18 @@ load_checksum_data() {
 ### LOAD MARKDOWN DATA ###
 
 load_markdown_data() {
-    local scan_parameters
+    local scan_parameters_pdf
+    local scan_parameters_html
     case "$subdirectories_handlement" in
-        "included") scan_parameters="$(printf -- "-path '*%s*' -type f -name '*.md' -printf '%%P\\\n' -or " "${subdirectories[@]}" | sed 's| -or $||g' | tr -d '\n')" ;;
-        "excluded") scan_parameters="$(printf -- "-not -path '*%s*' -type f -name '*.md' -printf '%%P\\\n' " "${subdirectories[@]}" | sed 's| $||g' | tr -d '\n')" ;;
-        *) scan_parameters="-type f -name '*.md' -printf '%P\n'" ;;
+        "included") scan_parameters_pdf="$(printf -- "-path '*%s*' -type f -name '*.md' -printf '%%P\\\n' -or " "${subdirectories[@]}" | sed 's| -or $||g' | tr -d '\n')" ;;
+        "excluded")
+            scan_parameters_pdf="$(printf -- "-not -path '*%s*' -type f -name '*.md' -printf '%%P\\\n' " "${subdirectories[@]}" | sed 's| $||g' | tr -d '\n')"
+            scan_parameters_html="$(printf -- "-path '*%s*' -type f -name '*.md' -printf '%%P\\\n' -or " "${subdirectories[@]}" | sed 's| -or $||g' | tr -d '\n')"
+            ;;
+        *) scan_parameters_pdf="-type f -name '*.md' -printf '%P\n'" ;;
     esac
-    mapfile -t scanned_rootless_files_to_render < <(eval find "$source_directory" "$scan_parameters") # -printf '%P\n' => $source/path/to/file.md -> path/to/file.md
+    mapfile -t scanned_rootless_files_to_render_html < <(eval find "$source_directory" "$scan_parameters_html") # -printf '%P\n' => $source/path/to/file.md -> path/to/file.md
+    mapfile -t scanned_rootless_files_to_render_pdf < <(eval find "$source_directory" "$scan_parameters_pdf") # -printf '%P\n' => $source/path/to/file.md -> path/to/file.md
 }
 
 ### INSPECT VARIABLE INTEGRITY ###
@@ -167,7 +173,7 @@ inspect_variable_integrity() {
         echo "${bold}ERROR:${sgr0} Target directory not set"
         ((anomalous_variable_count++))
     fi
-    if [ "${#scanned_rootless_files_to_render[@]}" -eq 0 ]; then
+    if [ "${#scanned_rootless_files_to_render_pdf[@]}" -eq 0 ]; then
         echo "${bold}ERROR:${sgr0} Couldn't find markdown files under source directory"
         ((anomalous_variable_count++))
     fi
@@ -177,6 +183,10 @@ inspect_variable_integrity() {
 ### RENDER PDF ###
 
 does_pdf_exist() {
+    [ -f "$1" ] && return 0 || return 1
+}
+
+does_html_exist() {
     [ -f "$1" ] && return 0 || return 1
 }
 
@@ -205,24 +215,24 @@ has_file_been_modified() {
 
 render_pdf() {
     local up_to_date_documents=0
-    for scanned_rootless_file_to_render in "${scanned_rootless_files_to_render[@]%.*}"; do # path/to/file.md -> path/to/file
-        if ! does_pdf_exist "$target_directory/$scanned_rootless_file_to_render.md.pdf" ||
-            ! does_checksum_exist "$source_directory/$scanned_rootless_file_to_render.md" ||
-            has_file_been_modified "$source_directory/$scanned_rootless_file_to_render.md"; then
+    for scanned_rootless_file_to_render_pdf in "${scanned_rootless_files_to_render_pdf[@]%.*}"; do # path/to/file.md -> path/to/file
+        if ! does_pdf_exist "$target_directory/$scanned_rootless_file_to_render_pdf.md.pdf" ||
+            ! does_checksum_exist "$source_directory/$scanned_rootless_file_to_render_pdf.md" ||
+            has_file_been_modified "$source_directory/$scanned_rootless_file_to_render_pdf.md"; then
 
-            echo "CONVERTING: $scanned_rootless_file_to_render.md"
+            echo "CONVERTING: $scanned_rootless_file_to_render_pdf.md"
 
             local rootless_directory_structure_of_file_to_render
-            rootless_directory_structure_of_file_to_render="$(dirname "$scanned_rootless_file_to_render")" # path/to/file -> path/to
+            rootless_directory_structure_of_file_to_render="$(dirname "$scanned_rootless_file_to_render_pdf")" # path/to/file -> path/to
             mkdir -p "$target_directory/$rootless_directory_structure_of_file_to_render"
 
             tput dim
             # shellcheck disable=2048,2086
-            if eval pandoc -t pdf --pdf-engine=tectonic --resource-path=\'"$source_directory/$rootless_directory_structure_of_file_to_render"\' ${pandoc_options[*]} --output=\'"$target_directory/$scanned_rootless_file_to_render.md.pdf"\' \'"$source_directory/$scanned_rootless_file_to_render.md"\'; then # \'"foo bar baz"\' --eval-> 'foo bar baz'
-                if [ "$checksum_file_pair_collection_to_store_nth_element" == "$source_directory/$scanned_rootless_file_to_render.md" ]; then
-                    checksum_file_pair_collection_to_store["$((${#checksum_file_pair_collection_to_store[@]} - 1))"]="$(sha256sum "$source_directory/$scanned_rootless_file_to_render.md")" # overwrite stored checksum
+            if eval pandoc -t pdf --pdf-engine=tectonic --resource-path=\'"$source_directory/$rootless_directory_structure_of_file_to_render"\' ${pandoc_options[*]} --output=\'"$target_directory/$scanned_rootless_file_to_render_pdf.md.pdf"\' \'"$source_directory/$scanned_rootless_file_to_render_pdf.md"\'; then # \'"foo bar baz"\' --eval-> 'foo bar baz'
+                if [ "$checksum_file_pair_collection_to_store_nth_element" == "$source_directory/$scanned_rootless_file_to_render_pdf.md" ]; then
+                    checksum_file_pair_collection_to_store["$((${#checksum_file_pair_collection_to_store[@]} - 1))"]="$(sha256sum "$source_directory/$scanned_rootless_file_to_render_pdf.md")" # overwrite stored checksum
                 else
-                    checksum_file_pair_collection_to_store+=("$(sha256sum "$source_directory/$scanned_rootless_file_to_render.md")") # add checksum
+                    checksum_file_pair_collection_to_store+=("$(sha256sum "$source_directory/$scanned_rootless_file_to_render_pdf.md")") # add checksum
                 fi
             fi
             tput sgr0
@@ -230,7 +240,41 @@ render_pdf() {
             ((up_to_date_documents++))
         fi
     done
-    if [ "${#scanned_rootless_files_to_render[@]}" -eq "$up_to_date_documents" ]; then
+    if [ "${#scanned_rootless_files_to_render_pdf[@]}" -eq "$up_to_date_documents" ]; then
+        echo "Documents are up to date!"
+    else
+        printf '%s\n' "${checksum_file_pair_collection_to_store[@]}" > .panda/sha256sum.txt # update stored checksums
+    fi
+}
+
+render_html() {
+    local up_to_date_documents=0
+    for scanned_rootless_file_to_render_html in "${scanned_rootless_files_to_render_html[@]%.*}"; do # path/to/file.md -> path/to/file
+        if ! does_html_exist "$target_directory/$scanned_rootless_file_to_render_html.md.html" ||
+            ! does_checksum_exist "$source_directory/$scanned_rootless_file_to_render_html.md" ||
+            has_file_been_modified "$source_directory/$scanned_rootless_file_to_render_html.md"; then
+
+            echo "CONVERTING: $scanned_rootless_file_to_render_html.md"
+
+            local rootless_directory_structure_of_file_to_render
+            rootless_directory_structure_of_file_to_render="$(dirname "$scanned_rootless_file_to_render_html")" # path/to/file -> path/to
+            mkdir -p "$target_directory/$rootless_directory_structure_of_file_to_render"
+
+            tput dim
+            # shellcheck disable=2048,2086
+            if eval pandoc -t html --html-engine=tectonic --resource-path=\'"$source_directory/$rootless_directory_structure_of_file_to_render"\' ${pandoc_options[*]} --output=\'"$target_directory/$scanned_rootless_file_to_render_html.md.html"\' \'"$source_directory/$scanned_rootless_file_to_render_html.md"\'; then # \'"foo bar baz"\' --eval-> 'foo bar baz'
+                if [ "$checksum_file_pair_collection_to_store_nth_element" == "$source_directory/$scanned_rootless_file_to_render_html.md" ]; then
+                    checksum_file_pair_collection_to_store["$((${#checksum_file_pair_collection_to_store[@]} - 1))"]="$(sha256sum "$source_directory/$scanned_rootless_file_to_render_html.md")" # overwrite stored checksum
+                else
+                    checksum_file_pair_collection_to_store+=("$(sha256sum "$source_directory/$scanned_rootless_file_to_render_html.md")") # add checksum
+                fi
+            fi
+            tput sgr0
+        else
+            ((up_to_date_documents++))
+        fi
+    done
+    if [ "${#scanned_rootless_files_to_render_html[@]}" -eq "$up_to_date_documents" ]; then
         echo "Documents are up to date!"
     else
         printf '%s\n' "${checksum_file_pair_collection_to_store[@]}" > .panda/sha256sum.txt # update stored checksums
@@ -243,3 +287,4 @@ load_checksum_data
 load_markdown_data
 inspect_variable_integrity
 render_pdf
+render_html
