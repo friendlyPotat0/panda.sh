@@ -264,7 +264,7 @@ render_html() {
 
             tput dim
             # shellcheck disable=2048,2086
-            if eval pandoc -t html --resource-path=\'"$source_directory/$rootless_directory_structure_of_file_to_render"\' --output=\'"$target_directory/$scanned_rootless_file_to_render_html.md.html"\' \'"$source_directory/$scanned_rootless_file_to_render_html.md"\'; then # \'"foo bar baz"\' --eval-> 'foo bar baz'
+            if eval pandoc --toc --embed-resources --standalone --katex --metadata pagetitle="$(basename $scanned_rootless_file_to_render_html)" -f markdown -t html --resource-path=\'"$source_directory/$rootless_directory_structure_of_file_to_render"\' --output=\'"$target_directory/$scanned_rootless_file_to_render_html.md.html"\' \'"$source_directory/$scanned_rootless_file_to_render_html.md"\'; then # \'"foo bar baz"\' --eval-> 'foo bar baz'
                 if [ "$checksum_file_pair_collection_to_store_nth_element" == "$source_directory/$scanned_rootless_file_to_render_html.md" ]; then
                     checksum_file_pair_collection_to_store["$((${#checksum_file_pair_collection_to_store[@]} - 1))"]="$(sha256sum "$source_directory/$scanned_rootless_file_to_render_html.md")" # overwrite stored checksum
                 else
