@@ -1,6 +1,6 @@
 # panda.sh
 
-General interface for document conversion in bulk from one format to another with great ease!
+Modular batch conversion interface
 
 ### Interface implementations
 
