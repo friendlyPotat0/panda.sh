@@ -1,3 +1,6 @@
+> [!NOTE]
+> Deprecating in favor of tern, a more robust and flexible implementation made in Rust [yuuhikaze/tern](https://github.com/yuuhikaze/tern).
+
 # panda.sh
 
 Modular batch conversion interface
